@@ -1,12 +1,19 @@
 var fs = require('fs'),
 	gm = require('gm');
 
-var imagesPath = './img',
-	imagePaths = fs.readdirSync(imagesPath).filter(function(path){
-		return /\.jpg/.test(path);
-	});
+var imagePaths = fs.readdirSync('./img')
+.filter(function(path){
+	return /\.jpg/.test(path);
+})
+.map(function(path){
+	return './img/'+path;
+});
 
-var utils = {
+module.exports = {
+	getImagePaths: function(){
+		return imagePaths;
+	},
+
 	rand: function(min, max){
 		return Math.floor(Math.random() * max) + min;
 	},
@@ -15,21 +22,27 @@ var utils = {
 		return imagePaths[this.rand(0, (imagePaths.length-1))];
 	},
 
+	getImageSize: function(imagePath, callback){
+		gm(imagePath)
+		.size(function(err, size){
+		  	if(err){
+		  		console.error('GM GET SIZE ERROR', err);
+		  		return;
+		  	}
+
+		  	callback(size);
+		});
+	},
+
 	getRandomImagePathBiggerThan: function(width, height, callback){
 		var timesTried = 1,
 			maxTries = imagePaths.length,
 			self = this;
 
 		var getImagePath = function(callback){
-			var imagePath = imagesPath+'/'+self.getRandomImagePath();
+			var imagePath = self.getRandomImagePath();
 
-			gm(imagePath)
-			.size(function(err, size){
-			  	if(err){
-			  		console.error('GM GET SIZE ERROR', err);
-			  		return;
-			  	}
-
+			self.getImageSize(imagePath, function(size){
 			  	if(size.width >= width && size.height >= height){
 			  		console.log('IMG_FOUND', size.width, width, size.height, height, imagePath);
 			  		callback(imagePath);
@@ -55,33 +68,5 @@ var utils = {
 			});
 		};
 		whileLoop();
-	}
-};
-
-module.exports = {
-	sendRandomImageForSizes: function(width, height, res){
-		utils.getRandomImagePathBiggerThan(width, height, function(imagePath){
-
-			if(!imagePath){
-				console.error('IMAGE PATH ERR IMAGE_PATH: "'+imagePath+'"');
-				res.end('No image found');
-				return;
-			}
-
-			gm(imagePath)
-			.resize(width, height, '^')
-			.gravity('Center')
-		  	.crop(width, height)
-			.toBuffer('JPG',function(err, buffer){
-			  	if(err){
-			  		console.error(err);
-			  		return;
-			  	}
-
-			  	res.set('Content-Type', 'image/jpg;base64');
-				res.end(buffer);
-			});
-
-		});
 	}
 };
